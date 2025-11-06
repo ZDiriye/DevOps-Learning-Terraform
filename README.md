@@ -30,6 +30,10 @@ The diagram below shows the overall AWS infrastructure and network design for th
 
 Before deploying, make sure:
 - The latest **Amazon Linux 2023 AMI ID** is updated in private and public EC2 resource block (  ami = "" ).
+- To create a key pair in the **Key Pairs** section of the AWS Management Console. Then download the `.pem` file and note its key name. So for example, if the file is `assignment.pem`, the key name would be `assignment`. Then update the Terraform public and private EC2 resource blocks to use that key name. For example:
+```hcl
+key_name = "assignment"
+```
 - A `.tfvars` file exists at the top level of the project with your database credentials:
 
 ```hcl
