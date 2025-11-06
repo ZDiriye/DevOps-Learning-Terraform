@@ -1,5 +1,5 @@
 locals {
-  wp_user_data = templatefile("${path.module}/userdata.sh", {
+  wp_user_data = templatefile("${path.module}/cloud-init.yml", {
     DB_HOST     = var.db_host
     DB_NAME     = var.db_name
     DB_USER     = var.db_username

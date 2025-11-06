@@ -1,0 +1,69 @@
+#cloud-config
+package_update: true
+packages:
+  - httpd
+  - php
+  - php-fpm
+  - php-mysqlnd
+  - wget
+  - tar
+  - unzip
+  - rsync
+
+write_files:
+  # 0) Static health endpoint
+  - path: /var/www/html/health.html
+    permissions: '0644'
+    content: |
+      ok
+
+  # 2) Apache + PHP-FPM via socket
+  - path: /etc/httpd/conf.d/php-fpm.conf
+    permissions: '0644'
+    content: |
+      <FilesMatch \.php$>
+          SetHandler "proxy:unix:/run/php-fpm/www.sock|fcgi://localhost/"
+      </FilesMatch>
+      DirectoryIndex index.php index.html
+
+  # 4) wp-config (Terraform will fill in the vars below)
+  - path: /var/www/html/wp-config.php
+    permissions: '0644'
+    content: |
+      <?php
+      define( 'DB_NAME',     '${DB_NAME}' );
+      define( 'DB_USER',     '${DB_USER}' );
+      define( 'DB_PASSWORD', '${DB_PASSWORD}' );
+      define( 'DB_HOST',     '${DB_HOST}' );
+      define( 'DB_CHARSET', 'utf8' );
+      define( 'DB_COLLATE', '' );
+
+      define('AUTH_KEY',         'changeme');
+      define('SECURE_AUTH_KEY',  'changeme');
+      define('LOGGED_IN_KEY',    'changeme');
+      define('NONCE_KEY',        'changeme');
+      define('AUTH_SALT',        'changeme');
+      define('SECURE_AUTH_SALT', 'changeme');
+      define('LOGGED_IN_SALT',   'changeme');
+      define('NONCE_SALT',       'changeme');
+
+      $table_prefix = 'wp_';
+      define( 'WP_DEBUG', false );
+      if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', __DIR__ . '/' ); }
+      require_once ABSPATH . 'wp-settings.php';
+
+runcmd:
+  # enable services
+  - systemctl enable --now php-fpm
+  - systemctl enable --now httpd
+
+  # 3) WordPress files
+  - bash -lc "mkdir -p /var/www/html && cd /var/www/html && rm -f index.html || true"
+  - bash -lc "cd /var/www/html && wget -q https://wordpress.org/latest.tar.gz"
+  - bash -lc "cd /var/www/html && tar -xzf latest.tar.gz && rsync -a wordpress/ . && rm -rf wordpress latest.tar.gz"
+
+  # 5) Permissions and restart
+  - chown -R apache:apache /var/www/html
+  - bash -lc "find /var/www/html -type d -exec chmod 755 {} \;"
+  - bash -lc "find /var/www/html -type f -exec chmod 644 {} \;"
+  - systemctl restart httpd
